@@ -67,14 +67,19 @@ def stream_out_config_setter(dut, stream_out, stream_in):
 class EndianSwapperTB(object):
 
     def __init__(self, dut, debug=False):
-        self.dut = dut
-        self.stream_in = AvalonSTDriver(dut, "stream_in", dut.clk)
-        self.backpressure = BitDriver(self.dut.stream_out_ready, self.dut.clk)
-        self.stream_out = AvalonSTMonitor(dut, "stream_out", dut.clk,
+        self.dut0 = dut
+        self.dut1 = dut
+        self.dut1.stream_in = self.dut0.stream_out
+        ##self.dut0.stream_out_ready = self.dut1.stream_in_ready
+        
+        self.stream_in = AvalonSTDriver(self.dut0, "stream_in", dut.clk)
+        self.backpressure = BitDriver(self.dut1.stream_out_ready, self.dut.clk)
+        self.stream_out = AvalonSTMonitor(self.dut1, "stream_out", dut.clk,
                                           config={'firstSymbolInHighOrderBits':
                                                   True})
 
         self.csr = AvalonMaster(dut, "csr", dut.clk)
+      
 
         cocotb.fork(stream_out_config_setter(dut, self.stream_out,
                                              self.stream_in))
@@ -82,8 +87,9 @@ class EndianSwapperTB(object):
         # Create a scoreboard on the stream_out bus
         self.pkts_sent = 0
         self.expected_output = []
-        self.scoreboard = Scoreboard(dut)
-        self.scoreboard.add_interface(self.stream_out, self.expected_output)
+        self.scoreboard0 = Scoreboard(self.dut0)
+        self.scoreboard1 = Scoreboard(self.dut1)
+        self.scoreboard0.add_interface(self.stream_out, self.expected_output)
 
         # Reconstruct the input transactions from the pins
         # and send them to our 'model'
